@@ -1,35 +1,39 @@
-# Especificação de Requisitos
+# Especificação de Requisitos - Monitora USID
 
 ## 1. Requisitos Funcionais (RF)
 | ID | Título | Descrição | Prioridade |
 | :--- | :--- | :--- | :---: |
-| RF001 | Autenticação | Login via LDAP/AD do hospital. | Essencial |
-| RF002 | Cadastro | Registro de pacientes com CNS/CPF. | Essencial |
+| RF001 | Autenticação AD/LDAP | Autenticação corporativa via Active Directory Ebserh e RBAC local. | Essencial |
+| RF002 | Cadastro de Aplicações | Cadastro e gestão dos sistemas do setor (URL health, Zabbix host ID, criticidade). | Essencial |
+| RF003 | Polling de Health | Checagem periódica assíncrona da rota `/api/health` das aplicações. | Essencial |
+| RF004 | Integração Zabbix | Leitura de alertas e métricas de infraestrutura da API JSON-RPC do Zabbix. | Essencial |
+| RF005 | Dashboard Visual | Interface reativa em tempo real com status grid, gráficos de latência e painel de incidentes. | Essencial |
+| RF006 | Trilha de Auditoria | Registro imutável em `audit_logs` de modificações em cadastros e configurações. | Importante |
 
 ### 📌 Legenda de Níveis de Prioridade:
-- **Essencial (Alta):** Funcionalidade indispensável para o funcionamento básico da aplicação. Sem ela, o sistema não pode ir para produção (ex: autenticação, cadastros base).
-- **Importante (Média):** Funcionalidade que agrega valor significativo ao negócio e melhora o fluxo de trabalho, mas cuja ausência temporária não impede a operação mínima (ex: relatórios, filtros avançados).
-- **Desejável (Baixa):** Funcionalidade complementar, melhoria estética ou recurso secundário que pode ser implementado em sprints futuras (ex: temas visuais, atalhos de teclado).
+- **Essencial (Alta):** Funcionalidade indispensável para o funcionamento básico da aplicação.
+- **Importante (Média):** Funcionalidade que agrega valor significativo ao negócio.
+- **Desejável (Baixa):** Funcionalidade complementar ou melhoria secundária.
 
 ## 2. Requisitos Não Funcionais (RNF)
 | ID | Categoria | Descrição |
 | :--- | :--- | :--- |
-| RNF001 | Criptografia | Tokens JWT assinados com HS256 e Cookies HttpOnly para Refresh Tokens. |
-| RNF002 | LGPD / Auditoria | Trilha de auditoria obrigatória (antes/depois) em tabela `audit_logs` para mutações. |
-| RNF003 | Segurança HTTP | Middleware de Security Headers (anti-cache `no-store`, `X-Frame-Options: DENY`, anti-XSS). |
-| RNF004 | Governança Segredos | Proibição de hardcode e validação de env vars na inicialização (`src/config.py`). |
+| RNF001 | Usabilidade & UX | Interface visual atraente (estilo Grafana aprimorado), tema dark/light e micro-animações. |
+| RNF002 | Desempenho Assíncrono | Coleta de métricas e sondagem HTTP assíncrona (`httpx`) sem bloquear o evento loop do FastAPI. |
+| RNF003 | Criptografia & Tokens | JWT assinados com HS256 e Cookies HttpOnly para Refresh Tokens. |
+| RNF004 | Segurança HTTP | Middleware de Security Headers (`no-store`, `X-Frame-Options: DENY`, `XSS-Protection`). |
+| RNF005 | Governança de Segredos | Variáveis de ambiente centralizadas (`src/config.py`) sem credenciais hardcoded. |
 
 ## 3. Detalhamento SDD (CARE)
-Para cada requisito, a implementação deve seguir o padrão:
 
-### [CARE-RF001] Autenticação LDAP
-* **Context (Contexto)**: Servidor LDAP configurado e credenciais de serviço disponíveis.
-* **Action (Ação)**: Criar middleware de autenticação que consulte o AD.
-* **Result (Resultado)**: Token JWT gerado após sucesso; Código 401 em falha.
-* **Evaluation (Avaliação)**: Executar `npm test tests/auth.spec.ts` (deve passar com 100% de sucesso).
+### [CARE-RF003] Polling de Health
+* **Context (Contexto)**: Lista de aplicações ativas cadastradas no sistema.
+* **Action (Ação)**: Worker em background faz GET assíncrono em `/api/health` de cada aplicação.
+* **Result (Resultado)**: Atualiza histórico de latência, uptime e status no banco de dados.
+* **Evaluation (Avaliação)**: Executar suíte de testes `pytest` validando respostas com status 200 (Online) e falhas (Offline).
 
-### [CARE-RF002] Cadastro de Pacientes
-* **Context (Contexto)**: Esquema de banco de dados 'PACIENTE' criado.
-* **Action (Ação)**: Criar endpoint POST `/api/pacientes` com validação de CPF e CNS.
-* **Result (Resultado)**: Registro persistido no banco; Log de auditoria criado.
-* **Evaluation (Avaliação)**: Validar contra JSON Schema definido em `04-modelo-dados.md`.
+### [CARE-RF004] Integração Zabbix
+* **Context (Contexto)**: Credenciais de API do Zabbix configuradas no `.env`.
+* **Action (Ação)**: `ZabbixProvider` faz requisição JSON-RPC para buscar triggers ativas e dados de performance.
+* **Result (Resultado)**: Retorna lista padronizada de incidentes e métricas para o Controller/Router.
+* **Evaluation (Avaliação)**: Testes unitários com mocks da API do Zabbix.

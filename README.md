@@ -1,86 +1,69 @@
-# Framework-SETISD-HC-UFPE
+# Monitora USID
 
-> **Arquitetura Web Full-Stack de Referência (Python / FastAPI + Vue 3 / Vite)**  
-> *Padrão Oficial de Desenvolvimento de Sistemas para o Hospital das Clínicas da UFPE (HC-UFPE / EBSERH).*
+> **Sistema Centralizado de Monitoramento Visual de Aplicações e Infraestrutura do SETISD**  
+> *Desenvolvido sobre o Padrão Oficial de Desenvolvimento do Hospital das Clínicas da UFPE (HC-UFPE / EBSERH).*
 
 ---
 
 ## 🏛️ Visão Geral
 
-O **Framework-SETISD-HC-UFPE** é a base arquitetural monolítica limpa, desacoplada e padronizada para a criação de novas aplicações web corporativas no HC-UFPE. 
+O **Monitora USID** é uma aplicação web voltada ao monitoramento em tempo real dos sistemas e serviços do Setor de TI e Saúde Digital (SETISD) do HC-UFPE. 
 
-Ele consolida as melhores práticas de engenharia de software da equipe de TI (SETISD), garantindo que todos os novos sistemas sigam os mesmos padrões de **tecnologia, segurança, acesso a dados (AGHU) e interface visual**, além de oferecer suporte pronto para **conteinerização opcional (Podman / Docker)**.
+Projetado para oferecer uma **usabilidade e apelo visual superiores aos dashboards tradicionais (como Grafana)**, o Monitora USID centraliza a visibilidade operacional da equipe, integrando-se à **API do Zabbix** para dados de infraestrutura e realizando a sondagem automática da rota `/api/health` estabelecida pelos sistemas baseados no **Framework-SETISD-HC-UFPE**.
 
 ---
 
-## 🚀 Pilares da Arquitetura
+## 🚀 Pilares do Sistema & Arquitetura
 
+- **📊 Dashboard Visual Executivo & Operacional:**
+  - Interface moderna estilo Grafana aprimorado com cards de status, gráficos de latência/disponibilidade e visualização clara de incidentes.
+  - Componentes visuais ricos com suporte a temas dark/light e atualização contínua em tempo real.
+- **🔌 Integração Nativa com Zabbix API:**
+  - Coleta automática de alertas (Triggers em estado de problema) e métricas de servidores/hosts via API JSON-RPC do Zabbix.
+- **🩺 Sondagem Automática `/api/health`:**
+  - Checagem periódica assíncrona da rota de diagnóstico `/api/health` de cada aplicação do setor, verificando status do banco de dados, uptime e versão do código (SemVer).
 - **🛡️ Autenticação Híbrida & Segurança Corporativa (AD + RBAC + Security Headers):**
-  - Suporte nativo ao **Active Directory (AD/LDAP Ebserh)** em produção com busca/validação prévia de usuários (`displayName`, `mail`, `department`).
-  - Provedor **Mock** automático para desenvolvimento local sem dependência de rede.
-  - Controle de sessão via **JWT Access Tokens** e **Refresh Tokens HttpOnly** com auto-renovação transparente no frontend.
-  - **Proteção de Rotas por Padrão (*Default-Private Router Pattern*):** Bloqueio automático de rotas hospitalares diretamente no `APIRouter` com `Depends(auth_handler.decode_token)`, liberando apenas exceções públicas explícitas (`/api/login`, `/api/health`).
-  - **Middleware de Security Headers:** Proteção nativa no backend FastAPI contra armazenamento de dados hospitalares em cache (`no-store, no-cache`), Clickjacking (`X-Frame-Options: DENY`), MIME sniffing (`nosniff`) e Cross-Site Scripting (XSS).
-- **⚡ Backend Moderno e Assíncrono (FastAPI):**
-  - Construído com Python 3.12+, FastAPI e SQLAlchemy 2.0 com pools de conexões assíncronas para o **PostgreSQL do AGHU**.
-  - Documentação interativa **Swagger UI (`/docs`)** com autenticação integrada via botão cadeado (**Authorize**).
-  - Manipulador global de erros garantindo respostas padronizadas em formato JSON (`{"detail": "..."}`).
-- **🎨 Frontend Reativo, UI Standard & Versionamento (Vue 3 / Vite / SemVer):**
-  - Vue 3 (Composition API / TypeScript) empacotado e servido diretamente pelo FastAPI.
-  - **Versionamento Semântico (SemVer `vX.Y.Z`):** Exibição visível da versão no rodapé do menu lateral/layout frontend e alinhamento com Git Tags.
-  - Interceptadores Axios automáticos para injeção de tokens `Bearer` e renovação de sessão sem deslogar o usuário.
-  - Biblioteca de componentes base reusáveis (`DataTable`, `Modal`, `Button`, `Card`, `ProfileDropdown`).
-- **🩺 Monitoramento & Resiliência:**
-  - Rota dedicada de diagnóstico de infraestrutura `GET /api/health` para sondagem de status do servidor e dos bancos de dados.
-- **🧪 Garantia de Qualidade & Testes Automatizados:**
-  - Suíte de testes integrada com `pytest` e `httpx` para validação imediata de status do servidor, autenticação e rotas.
-- **🚀 Deploy Flexível & DevOps (Systemd / Podman / Docker):**
-  - Suporte nativo à execução como serviço de segundo plano no Linux (`systemd`) para implantação direta e leve em VMs.
-  - Receita de build multi-estágio em `Dockerfile` e orquestração `compose.yaml` prontas para deploy em contêineres (Podman / Docker).
+  - Integração com **Active Directory (AD/LDAP Ebserh)** em produção e provedor **Mock** para desenvolvimento local.
+  - Controle de acesso baseado em papéis (RBAC local: Administrador, Operador, Consulta).
+  - Tokens JWT + Refresh Tokens HttpOnly com auto-renovação transparente.
+  - Middleware de Security Headers e *Default-Private Router Pattern* no FastAPI.
+- **⚡ Backend Moderno (FastAPI) & Frontend Reativo (Vue 3 / Vite):**
+  - Python 3.12+ assíncrono com FastAPI, SQLAlchemy 2.0 e `httpx`.
+  - Vue 3 SPA (Composition API / TypeScript) servido diretamente pelo FastAPI.
 
 ---
 
 ## 📂 Estrutura do Projeto
 
 ```text
-Framework-SETISD-HC-UFPE/
-├── .env.example          # Modelo de variáveis de ambiente
-├── AGENTS.md             # Diretrizes universais para Agentes de IA (Gemini, Claude, ChatGPT, Cursor)
-├── audit_framework.py    # Auditor de Conformidade Arquitetural
-├── Dockerfile            # Receita de build multi-estágio (opcional para Podman / Docker)
-├── compose.yaml          # Orquestração de contêiner para VMs (opcional)
-├── pyproject.toml        # Dependências e configurações do projeto Python (uv)
-├── requirements.txt      # Lista congelada de pacotes Python
+MonitoraUSID/
+├── .env.example          # Modelo de variáveis de ambiente (inclui Zabbix API)
+├── AGENTS.md             # Diretrizes universais para Agentes de IA
+├── audit_framework.py    # Auditor de Conformidade Arquitetural (11 Pilares)
+├── Dockerfile            # Receita de build multi-estágio
+├── compose.yaml          # Orquestração de contêiner
+├── pyproject.toml        # Dependências e configurações Python
 ├── dev.sh                # Script de execução paralela para desenvolvimento
 ├── start.sh              # Script de build e execução local do servidor
-├── docs/                 # Documentação detalhada da arquitetura e manuais
-│   ├── especificacao/    # Gabarito oficial de Especificação de Software (Visão, Requisitos, SDD)
+├── openspec/             # Especificações orientadas a mudanças (OpenSpec)
+│   └── changes/          # Propostas de mudança ativas
+├── docs/                 # Documentação detalhada
+│   ├── especificacao/    # Especificação do sistema (Visão, Requisitos, SDD)
 │   ├── ARCHITECTURE.md   # Arquitetura em camadas e padrão Provider
 │   ├── AUTHENTICATION.md # Sistema de Autenticação (AD / Mock / JWT)
-│   ├── GUIA_DESENVOLVIMENTO.md # Tutorial passo a passo para criar novas telas/rotas
 │   └── SETUP.md          # Guia de instalação, testes e deploy
 ├── frontend/             # Aplicação SPA Vue 3 (Vite + TypeScript)
 │   ├── src/
-│   │   ├── components/   # Componentes visuais reusáveis (DataTable, Modal, etc.)
-│   │   ├── layouts/      # Layouts de página (DefaultLayout, LoginLayout)
-│   │   ├── router/       # Roteamento e guards de autenticação
-│   │   ├── services/     # Cliente HTTP Axios com interceptadores de token
-│   │   ├── stores/       # Gerenciamento de estado Pinia (auth, ui)
-│   │   └── views/        # Telas da aplicação (Home, Login, Pacientes, Admin)
-│   └── package.json      # Dependências do frontend (Node.js)
-├── src/                  # Backend em Python FastAPI
-│   ├── auth/             # Módulos de autenticação AD, JWT e Mock
-│   ├── controllers/      # Regras de negócio e casos de uso
-│   ├── helpers/          # Funções utilitárias (sql_helper)
-│   ├── models/           # Modelos de dados SQLAlchemy (banco local)
-│   ├── providers/        # Acesso a dados desacoplado (Interfaces, Postgres, CSV, SQLs)
-│   ├── resources/        # Gerenciamento de conexões de banco de dados
-│   ├── routers/          # Endpoints HTTP da API REST (Swagger)
-│   └── main.py           # Ponto de entrada FastAPI e servidor SPA
-└── tests/                # Testes automatizados assíncronos (pytest)
-    ├── conftest.py       # Fixtures de teste do FastAPI TestClient
-    ├── test_auth.py      # Testes de login Mock e validação de tokens
-    └── test_status_servidor.py # Testes de status da aplicação e infraestrutura
+│   │   ├── components/   # Componentes visuais (StatusCards, MetricsChart, Grid)
+│   │   ├── views/        # Telas (Dashboard, Monitoramento, Configurações, Admin)
+│   │   └── services/     # Cliente HTTP e comunicação de APIs
+├── src/                  # Backend FastAPI
+│   ├── auth/             # Módulos de autenticação AD e JWT
+│   ├── controllers/      # Regras de negócio de monitoramento e Zabbix
+│   ├── providers/        # Acesso desacoplado (Zabbix, Health Poller, Postgres)
+│   ├── resources/        # Gerenciamento de conexões
+│   └── routers/          # Endpoints HTTP REST (`/api/monitor`, `/api/health`, `/api/auth`)
+└── tests/                # Testes automatizados (pytest)
 ```
 
 ---
@@ -90,8 +73,8 @@ Framework-SETISD-HC-UFPE/
 ### 1. Configuração do Ambiente
 ```bash
 # Clone o repositório
-git clone https://github.com/HCUFPE/Framework-SETISD-HC-UFPE.git
-cd Framework-SETISD-HC-UFPE
+git clone https://github.com/dfturmina/MonitoraUSID.git
+cd MonitoraUSID
 
 # Copie o arquivo de exemplo de ambiente
 cp .env.example .env
@@ -103,83 +86,41 @@ Executa o Backend (`http://localhost:8000`) e o Frontend Vite (`http://localhost
 ./dev.sh
 ```
 
-### 3. Rodar a Suíte de Testes Automatizados
+### 3. Rodar a Suíte de Testes e Auditor de Conformidade
 ```bash
+# Testes unitários/integração
 uv run pytest
+
+# Verificação de conformidade de arquitetura (11 pilares)
+uv run python audit_framework.py .
 ```
 
 ---
 
-## 🚀 Opções de Deploy em Servidores e VMs
+## 🔍 OpenSpec Workflow
 
-O framework oferece flexibilidade total para colocar o sistema no ar:
+Este repositório utiliza o **OpenSpec** para gerenciamento de especificações e propostas de mudança.
 
-### 1. Implantação Direta na VM (Sem Contêineres / Systemd)
-Para quem prefere rodar direto no sistema operacional sem overhead de contêiner:
-```bash
-# 1. Instalar dependências e compilar frontend
-uv sync && cd frontend && npm install && npm run build && cd ..
-
-# 2. Teste rápido manual (opcional)
-./start.sh
-
-# 3. Execução permanente como serviço do Linux (systemd)
-sudo systemctl enable meu-sistema && sudo systemctl start meu-sistema
-```
-
-### 2. Implantação em Contêineres (Podman / Docker)
-Para quem prefere isolamento completo:
-```bash
-# 1. Build da imagem e inicialização do contêiner em background
-podman compose up -d --build
-# (ou com docker: docker compose up -d --build)
-
-# 2. Verificar os logs da aplicação
-podman compose logs -f
-```
-
-A aplicação ficará disponível consolidada em `http://IP-DA-VM:8000/`. Para o passo a passo completo da configuração do arquivo de serviço do Linux (`systemd`), consulte o [Guia de Instalação e Deploy (`docs/SETUP.md`)](./docs/SETUP.md).
-
----
-
-## 🔍 Auditoria Automatizada de Conformidade Arquitetural
-
-Para garantir que o desenvolvimento (seja feito por programadores ou com auxílio de copilotos de IA) esteja **100% conforme** com as diretrizes do hospital, o repositório disponibiliza o script auditor [`audit_framework.py`](./audit_framework.py).
-
-O auditor inspeciona automaticamente **11 pilares mandatórios**:
-1. Stack Backend (Python 3.12+ / FastAPI / Uvicorn).
-2. Autenticação Corporativa (AD/LDAP Ebserh + RBAC Híbrido).
-3. Conectividade Híbrida / Multi-provedor (Interfaces desacopladas PostgreSQL / CSV / Mocks).
-4. Autenticação Persistente e Cookies `HttpOnly` para Refresh Token.
-5. Proteção de Rotas por Padrão (*Default-Private Router Pattern* no `APIRouter`).
-6. Middleware de Security Headers HTTP (Defense-in-Depth contra XSS, Clickjacking e Cache).
-7. Governança de Segredos (`src/config.py` e `.env.example` sem hardcode).
-8. Trilha de Auditoria Imutável (`audit_logs` com `dados_anteriores`, `dados_novos` e `ip_origem`).
-9. Layout Frontend Vue 3 SPA & Versionamento (SidebarNav à esquerda + Marca + Versão **SemVer** no rodapé).
-10. Suíte de Testes Automatizados (Testes de status HTTP e auth com `pytest`).
-11. Monitoramento Zabbix (`/api/health`) e Manifesto para IA ([`AGENTS.md`](./AGENTS.md)).
-
-### Como executar a verificação:
-```bash
-# Auditar o próprio Framework ou o seu projeto em desenvolvimento:
-uv run python audit_framework.py /caminho/para/o/seu/projeto
-```
-*(O script exibirá o relatório detalhado com a **Taxa de Conformidade (%)** e apontará o que precisa ser ajustado em caso de pendências).*
+- **Verificar status das especificações:**
+  ```bash
+  openspec status --change monitora-usid-inicial
+  ```
+- **Listar especificações ativas:**
+  ```bash
+  openspec list
+  ```
 
 ---
 
 ## 📚 Documentação Detalhada
 
-Para se aprofundar nos padrões arquiteturais do hospital, consulte a documentação oficial na pasta `docs/`:
+Para mais detalhes sobre a arquitetura e especificações do sistema:
 
-- **[ Guia de Instalação, Execução e Deploy (`docs/SETUP.md`)](./docs/SETUP.md)**
-- **[ Gabarito de Especificação de Requisitos - SDD (`docs/especificacao/README.md`)](./docs/especificacao/README.md)**
+- **[ Gabarito de Especificação do Monitora USID (`docs/especificacao/SPEC.md`)](./docs/especificacao/SPEC.md)**
+- **[ Visão do Produto (`docs/especificacao/01-visao.md`)](./docs/especificacao/01-visao.md)**
+- **[ Requisitos do Sistema (`docs/especificacao/02-requisitos.md`)](./docs/especificacao/02-requisitos.md)**
 - **[ Diretrizes e Regras para Agentes de IA (`AGENTS.md`)](./AGENTS.md)**
-- **[ Arquitetura em Camadas e Padrão Provider (`docs/ARCHITECTURE.md`)](./docs/ARCHITECTURE.md)**
-- **[ Manual de Autenticação AD, Mock e JWT (`docs/AUTHENTICATION.md`)](./docs/AUTHENTICATION.md)**
-- **[ Padrão de Configurações e Gestão de Segredos (`docs/SECRETS_E_CONFIGURACOES.md`)](./docs/SECRETS_E_CONFIGURACOES.md)**
-- **[ Padrão de Auditoria e Trilha de Mudanças (`docs/AUDITORIA_E_LOGS.md`)](./docs/AUDITORIA_E_LOGS.md)**
-- **[ Tutorial de Criação de Novas Funcionalidades (`docs/GUIA_DESENVOLVIMENTO.md`)](./docs/GUIA_DESENVOLVIMENTO.md)**
+- **[ Arquitetura em Camadas (`docs/ARCHITECTURE.md`)](./docs/ARCHITECTURE.md)**
 
 ---
 
