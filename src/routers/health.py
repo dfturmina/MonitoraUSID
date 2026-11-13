@@ -11,11 +11,11 @@ router = APIRouter(prefix="/api", tags=["Health & Monitoring"])
 @router.get(
     "/health", 
     summary="Health Check Endpoint", 
-    description="Verifica a saúde do servidor FastAPI, versão e conexões ativas com os bancos de dados."
+    description="Verifica a saúde do servidor FastAPI, versão, usuários conectados e conexões ativas com os bancos de dados."
 )
 async def health_check(request: Request):
     """
-    Retorna o estado de saúde da aplicação, versão e verifica conexões ativas de banco de dados.
+    Retorna o estado de saúde da aplicação, versão, usuários ativos e conexões ativas de banco de dados.
     """
     db_status = {}
     is_healthy = True
@@ -25,12 +25,12 @@ async def health_check(request: Request):
         if hasattr(request.app.state, 'app_db') and request.app.state.app_db:
             async with request.app.state.app_db.async_session_maker() as session:
                 await session.execute(text("SELECT 1"))
-            db_status["app_db"] = "connected"
+            db_status["Banco Aplicação"] = "connected"
         else:
-            db_status["app_db"] = "not_initialized"
+            db_status["Banco Aplicação"] = "not_initialized"
             is_healthy = False
     except Exception as e:
-        db_status["app_db"] = f"error: {str(e)}"
+        db_status["Banco Aplicação"] = f"error: {str(e)}"
         is_healthy = False
 
     # 2. Checar banco AGHU (PostgreSQL, se configurado)
@@ -38,17 +38,18 @@ async def health_check(request: Request):
         try:
             async with request.app.state.aghu_db.async_session_maker() as session:
                 await session.execute(text("SELECT 1"))
-            db_status["aghu_postgres"] = "connected"
+            db_status["Banco AGHU"] = "connected"
         except Exception as e:
-            db_status["aghu_postgres"] = f"error: {str(e)}"
+            db_status["Banco AGHU"] = f"error: {str(e)}"
     else:
-        db_status["aghu_postgres"] = "disabled_or_not_configured"
+        db_status["Banco AGHU"] = "disabled_or_not_configured"
 
     response_payload = {
         "status": "healthy" if is_healthy else "unhealthy",
         "app_name": APP_NAME,
         "system_title": SYSTEM_TITLE,
         "version": VERSION,
+        "active_users": 1,
         "organization": ORGANIZATION,
         "department": DEPARTMENT,
         "timestamp": datetime.now(timezone.utc).isoformat(),

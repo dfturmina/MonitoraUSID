@@ -29,6 +29,7 @@ class Settings:
     APP_DB_URL: str = os.getenv("APP_DB_URL", "sqlite+aiosqlite:///data/app.db")
     POSTGRES_DSN: str = os.getenv("POSTGRES_DSN", "")
     ORACLE_DSN: str = os.getenv("ORACLE_DSN", "")
+    METABASE_DB_URL: str = os.getenv("METABASE_DB_URL", "")
 
     # 3. Active Directory (LDAP)
     AD_URL: str = os.getenv("AD_URL", "")
@@ -40,6 +41,15 @@ class Settings:
     JWT_SECRET: str = os.getenv("JWT_SECRET", "super-secret-key-change-in-production")
     JWT_EXP_HOURS: int = int(os.getenv("JWT_EXP_HOURS", "24"))
     REFRESH_TOKEN_EXP_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXP_DAYS", "30"))
+
+    # 5. Integração Zabbix
+    ZABBIX_API_URL: str = os.getenv("ZABBIX_API_URL", "")
+    ZABBIX_API_TOKEN: str = os.getenv("ZABBIX_API_TOKEN", "")
+
+    # 6. Alertas Microsoft Teams
+    TEAMS_WEBHOOK_URL: str = os.getenv("TEAMS_WEBHOOK_URL", "")
+    TEAMS_ALERT_ENABLED: bool = os.getenv("TEAMS_ALERT_ENABLED", "True").lower() in ("true", "1", "yes")
+    TEAMS_CHECK_INTERVAL_SECONDS: int = int(os.getenv("TEAMS_CHECK_INTERVAL_SECONDS", "60"))
 
     @classmethod
     def validate_config(cls):

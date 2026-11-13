@@ -47,6 +47,11 @@ async def get_app_db_session(request: Request) -> AsyncGenerator[AsyncSession, N
     """
     Dependency for FastAPI to get an application database session (SQLite) from the app state.
     """
+    if not hasattr(request.app.state, "app_db") or request.app.state.app_db is None:
+        import os
+        app_dsn = os.getenv("SQLITE_DSN") or os.getenv("APP_DB_URL") or "sqlite+aiosqlite:///data/app.db"
+        request.app.state.app_db = DatabaseManager(app_dsn)
+
     app_db_manager: DatabaseManager = request.app.state.app_db
     async for session in app_db_manager.get_session():
         yield session

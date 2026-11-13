@@ -119,7 +119,93 @@
           </div>
         </div>
 
-        <!-- 3. Guias e Exemplos de Perfis (Informativo) -->
+        <!-- 3. Integrações de Serviços de Terceiros (Metabase, Grafana, Prometheus) -->
+        <div class="space-y-3 pt-4 border-t">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-md font-bold text-gray-800 flex items-center gap-2">
+                <LinkIcon class="h-5 w-5 text-indigo-600" />
+                Integrações de Serviços de Terceiros (APIs / Chaves de Acesso)
+              </h2>
+              <p class="text-xs text-gray-500 mt-0.5">
+                Cadastre chaves de API e tokens para integração dinâmica com Metabase, Grafana ou Prometheus.
+              </p>
+            </div>
+            <Button variant="secondary" size="sm" @click="openAddIntegracaoModal">
+              <template #icon>
+                <PlusIcon class="h-4 w-4" />
+              </template>
+              Nova Integração
+            </Button>
+          </div>
+
+          <div v-if="loadingIntegracoes" class="py-4 text-center text-xs text-gray-400">
+            Carregando integrações cadastradas...
+          </div>
+          <div v-else-if="integracoes.length === 0" class="p-4 bg-gray-50 border border-dashed rounded-xl text-center text-xs text-gray-500">
+            Nenhuma integração de terceiro cadastrada.
+          </div>
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div 
+              v-for="integ in integracoes" 
+              :key="integ.id" 
+              class="p-4 bg-white border border-gray-200 rounded-xl flex items-center justify-between shadow-sm"
+            >
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 text-[10px] font-black uppercase rounded bg-indigo-100 text-indigo-800">
+                    {{ integ.provedor }}
+                  </span>
+                  <h3 class="font-bold text-sm text-gray-900">{{ integ.nome }}</h3>
+                </div>
+                <p class="text-xs font-mono text-gray-500">{{ integ.url_base }}</p>
+                <p class="text-[11px] text-gray-400 font-mono">Chave: {{ integ.api_key_masked }}</p>
+              </div>
+              <button 
+                @click="removeIntegracao(integ.id)" 
+                class="p-1.5 text-gray-400 hover:text-red-600 transition"
+                title="Excluir Integração"
+              >
+                <TrashIcon class="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3.1. Alertas Microsoft Teams (Notificações em Tempo Real) -->
+        <div class="p-5 bg-white border border-gray-200 rounded-xl shadow-sm space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-3 gap-3">
+            <div>
+              <h2 class="text-md font-bold text-gray-800 flex items-center gap-2">
+                <BellAlertIcon class="h-5 w-5 text-indigo-600" />
+                Alertas Microsoft Teams (Notificações em Tempo Real)
+              </h2>
+              <p class="text-xs text-gray-500 mt-0.5">
+                Notifica o seu chat pessoal ou grupo do Teams imediatamente quando qualquer sistema monitorado cair ou se restabelecer.
+              </p>
+            </div>
+            <Button variant="secondary" size="sm" :disabled="testingTeams" @click="testTeamsAlert">
+              <template #icon>
+                <PaperAirplaneIcon class="h-4 w-4 text-indigo-600" />
+              </template>
+              {{ testingTeams ? 'Enviando...' : 'Testar Alerta Teams' }}
+            </Button>
+          </div>
+          
+          <div class="flex flex-wrap items-center gap-3 text-xs">
+            <span class="font-bold text-gray-600">Status dos Alertas:</span>
+            <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1.5">
+              <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Daemon Ativo no Servidor (Checagem contínua a cada 60s)
+            </span>
+          </div>
+
+          <p v-if="teamsTestResult" :class="teamsTestSuccess ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-rose-700 bg-rose-50 border-rose-200'" class="p-2.5 rounded-lg border text-xs font-semibold">
+            {{ teamsTestResult }}
+          </p>
+        </div>
+
+        <!-- 4. Guias e Exemplos de Perfis (Informativo) -->
         <div class="p-5 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
           <div class="flex items-center space-x-2 text-paper-text font-bold text-md border-b pb-2">
             <ShieldCheckIcon class="h-5 w-5 text-gray-600" />
@@ -254,11 +340,46 @@
         </div>
       </form>
     </Modal>
+
+    <!-- Modal 3: Cadastrar Nova Integração de Terceiro -->
+    <Modal :show="showAddIntegracaoModal" @close="showAddIntegracaoModal = false">
+      <template #header>Cadastrar Nova Integração (API / Chave)</template>
+      <form @submit.prevent="handleSaveIntegracao" autocomplete="off" class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Nome da Integração</label>
+          <input v-model="newIntegracao.nome" required type="text" autocomplete="off" placeholder="Ex: Metabase HC-UFPE" class="w-full px-3 py-2 border rounded-lg text-sm" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Provedor</label>
+          <select v-model="newIntegracao.provedor" required class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+            <option value="METABASE">Metabase (API Key / Token)</option>
+            <option value="GRAFANA">Grafana (Service Account Token)</option>
+            <option value="PROMETHEUS">Prometheus / Outros</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">URL Base do Serviço</label>
+          <input v-model="newIntegracao.url_base" required type="url" autocomplete="off" placeholder="http://relatorios.hc-ufpe.ebserh" class="w-full px-3 py-2 border rounded-lg text-sm" />
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Chave de API / Token (X-API-Key / Bearer)</label>
+          <input v-model="newIntegracao.api_key" required type="password" autocomplete="new-password" placeholder="Token ou Chave secreta de API" class="w-full px-3 py-2 border rounded-lg text-sm font-mono" />
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-4 border-t">
+          <Button variant="secondary" type="button" @click="showAddIntegracaoModal = false">Cancelar</Button>
+          <Button variant="primary" type="submit" :disabled="submittingIntegracao">Salvar Integração</Button>
+        </div>
+      </form>
+    </Modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import Card from '../components/Card.vue';
 import Modal from '../components/Modal.vue';
 import Button from '../components/Button.vue';
@@ -273,12 +394,88 @@ import {
   UserIcon,
   MagnifyingGlassIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  LinkIcon,
+  PlusIcon,
+  TrashIcon,
+  BellAlertIcon,
+  PaperAirplaneIcon
 } from '@heroicons/vue/24/outline';
 
 const authStore = useAuthStore();
 const showAddUserModal = ref(false);
 const showEditUserModal = ref(false);
+
+const testingTeams = ref(false);
+const teamsTestResult = ref('');
+const teamsTestSuccess = ref(false);
+
+const testTeamsAlert = async () => {
+  testingTeams.value = true;
+  teamsTestResult.value = '';
+  try {
+    const res = await api.post('/api/monitor/test-teams-alert');
+    teamsTestSuccess.value = true;
+    teamsTestResult.value = res.data?.detail || "Alerta de teste enviado com sucesso para o Teams!";
+  } catch (err: any) {
+    teamsTestSuccess.value = false;
+    teamsTestResult.value = err?.response?.data?.detail || "Erro ao disparar teste para o Teams.";
+  } finally {
+    testingTeams.value = false;
+  }
+};
+
+const integracoes = ref<any[]>([]);
+const loadingIntegracoes = ref(false);
+const showAddIntegracaoModal = ref(false);
+const submittingIntegracao = ref(false);
+
+const newIntegracao = ref({
+  nome: '',
+  provedor: 'METABASE',
+  url_base: '',
+  api_key: ''
+});
+
+const fetchIntegracoes = async () => {
+  loadingIntegracoes.value = true;
+  try {
+    const res = await api.get('/api/integracoes');
+    integracoes.value = res.data || [];
+  } catch (err) {
+    console.error("Erro ao buscar integrações:", err);
+  } finally {
+    loadingIntegracoes.value = false;
+  }
+};
+
+const openAddIntegracaoModal = () => {
+  newIntegracao.value = { nome: '', provedor: 'METABASE', url_base: '', api_key: '' };
+  showAddIntegracaoModal.value = true;
+};
+
+const handleSaveIntegracao = async () => {
+  submittingIntegracao.value = true;
+  try {
+    await api.post('/api/integracoes', newIntegracao.value);
+    showAddIntegracaoModal.value = false;
+    await fetchIntegracoes();
+  } catch (err: any) {
+    alert(err?.response?.data?.detail || "Erro ao salvar integração.");
+  } finally {
+    submittingIntegracao.value = false;
+  }
+};
+
+const removeIntegracao = async (id: number) => {
+  if (!confirm("Tem certeza que deseja excluir esta integração?")) return;
+  try {
+    await api.delete(`/api/integracoes/${id}`);
+    await fetchIntegracoes();
+  } catch (err: any) {
+    alert("Erro ao excluir integração.");
+  }
+};
 
 interface UserRBAC {
   id: number;
@@ -297,22 +494,16 @@ interface ADUserData {
 }
 
 const availableRoles = [
-  { nome: 'ADMINISTRADOR', descricao: 'Gestão total do sistema, configurações e concessão de perfis.', badgeClass: 'bg-purple-100 text-purple-800' },
-  { nome: 'MEDICO', descricao: 'Acesso a evolução clínica, prescrições e altas hospitalares.', badgeClass: 'bg-blue-100 text-blue-800' },
-  { nome: 'ENFERMAGEM', descricao: 'Acesso ao censo diário de leitos, checagem e sinais vitais.', badgeClass: 'bg-emerald-100 text-emerald-800' },
-  { nome: 'FARMACEUTICO', descricao: 'Acesso à dispensação de medicamentos e controle de estoque.', badgeClass: 'bg-amber-100 text-amber-800' },
-  { nome: 'GESTOR_UNIDADE', descricao: 'Acesso a relatórios estratégicos, indicadores e dashboards do setor.', badgeClass: 'bg-indigo-100 text-indigo-800' },
-  { nome: 'CONSULTA', descricao: 'Acesso estritamente somente-leitura (Read-Only) para consulta.', badgeClass: 'bg-gray-100 text-gray-800' }
+  { nome: 'ADMINISTRADOR', descricao: 'Gestão total do sistema, adição de aplicações, Zabbix e controle de usuários.', badgeClass: 'bg-purple-100 text-purple-800' },
+  { nome: 'OPERADOR', descricao: 'Gestão operacional de alertas, acompanhamento do poller e checagem de indisponibilidade.', badgeClass: 'bg-emerald-100 text-emerald-800' },
+  { nome: 'CONSULTA', descricao: 'Acesso estritamente somente-leitura (Read-Only) aos dashboards e estatísticas.', badgeClass: 'bg-gray-100 text-gray-800' }
 ];
 
 // Lista Inicial Simulada de Usuários RBAC Autorizados no Banco Local (data/app.db)
 const usersList = ref<UserRBAC[]>([
-  { id: 1, username: 'admin', nome: 'Administrador do Sistema', perfil: 'ADMINISTRADOR', ativo: true },
-  { id: 2, username: 'gestor.unidade', nome: 'Gestor da Unidade', perfil: 'GESTOR_UNIDADE', ativo: true },
-  { id: 3, username: 'medico.exemplo', nome: 'Médico do Setor', perfil: 'MEDICO', ativo: true },
-  { id: 4, username: 'enfermeiro.exemplo', nome: 'Enfermeiro do Setor', perfil: 'ENFERMAGEM', ativo: true },
-  { id: 5, username: 'farmaceutico.exemplo', nome: 'Farmacêutico do Setor', perfil: 'FARMACEUTICO', ativo: true },
-  { id: 6, username: 'usuario.consulta', nome: 'Usuário de Consulta', perfil: 'CONSULTA', ativo: false }
+  { id: 1, username: 'admin', nome: 'Administrador do MonitoraUSID', perfil: 'ADMINISTRADOR', ativo: true },
+  { id: 2, username: 'operador.setisd', nome: 'Operador de Infraestrutura SETISD', perfil: 'OPERADOR', ativo: true },
+  { id: 3, username: 'gestao.hospitalar', nome: 'Consulta de Indicadores SETISD', perfil: 'CONSULTA', ativo: true }
 ]);
 
 const newUser = ref({
@@ -412,4 +603,8 @@ const toggleUserStatus = (user: UserRBAC) => {
 const removeUser = (userId: number) => {
   usersList.value = usersList.value.filter(u => u.id !== userId);
 };
+
+onMounted(() => {
+  fetchIntegracoes();
+});
 </script>

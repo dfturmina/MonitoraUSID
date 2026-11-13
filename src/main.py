@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from .resources.database import DatabaseManager, Base
+from .models import aplicacao, health_log, refresh_token, audit_log
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,10 +36,67 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     print("App SQLite tables checked/created.")
 
+    # Inicia o Daemon de Monitoramento em Segundo Plano para Alertas do Teams
+    import asyncio
+    from .services.teams_alert_service import TeamsAlertService
+    from .config import settings
+
+    async def background_monitoring_daemon():
+        from .services.health_poller import HealthPollerService
+        from .models.aplicacao import Aplicacao
+        from sqlalchemy.future import select
+
+        print(f"Teams Alert Background Daemon iniciado (Intervalo: {settings.TEAMS_CHECK_INTERVAL_SECONDS}s, Ativo: {settings.TEAMS_ALERT_ENABLED}).")
+        while True:
+            try:
+                await asyncio.sleep(max(30, settings.TEAMS_CHECK_INTERVAL_SECONDS))
+                if not settings.TEAMS_ALERT_ENABLED:
+                    continue
+                if hasattr(app.state, 'app_db') and app.state.app_db:
+                    async with app.state.app_db.async_session_maker() as session:
+                        stmt = select(Aplicacao).where(Aplicacao.ativo == True)
+                        res = await session.execute(stmt)
+                        apps = res.scalars().all()
+                        for a in apps:
+                            app_dict = {
+                                "id": a.id,
+                                "nome": a.nome,
+                                "url_base": a.url_base,
+                                "possui_rota_health": getattr(a, "possui_rota_health", True),
+                                "url_health": a.url_health or "/api/health",
+                                "possui_banco_aghu": getattr(a, "possui_banco_aghu", False),
+                                "monitora_usuarios_ativos": getattr(a, "monitora_usuarios_ativos", False),
+                                "zabbix_host_id": getattr(a, "zabbix_host_id", ""),
+                                "criticidade": a.criticidade,
+                                "bancos_adicionais": getattr(a, "bancos_adicionais", None)
+                            }
+                            poll_res = await HealthPollerService.poll_single_app(app_dict)
+                            await TeamsAlertService.notify_system_status(
+                                app_id=a.id,
+                                app_name=a.nome,
+                                full_url=poll_res["full_url"],
+                                is_online=poll_res["is_online"],
+                                status_http=poll_res["status_http"],
+                                latency_ms=poll_res["latency_ms"],
+                                criticidade=a.criticidade,
+                                error_detail=str(poll_res.get("databases", {}).get("Conexão", "")) if not poll_res["is_online"] else None
+                            )
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                print(f"[BACKGROUND DAEMON] Erro no ciclo de sondagem: {e}")
+
+    poller_daemon_task = asyncio.create_task(background_monitoring_daemon())
+
     yield
 
     # Shutdown
     print("Shutting down...")
+    poller_daemon_task.cancel()
+    try:
+        await poller_daemon_task
+    except asyncio.CancelledError:
+        pass
     if hasattr(app.state, 'aghu_db') and app.state.aghu_db:
         await app.state.aghu_db.close_connection()
         print("AGHU PostgreSQL connection pool closed.")
@@ -109,21 +167,23 @@ if os.path.exists(assets_dir):
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 # Roteadores da API
-from .routers import paciente, auth, admin, health
+from .routers import paciente, auth, admin, health, monitor, integracoes
 app.include_router(health.router)
 app.include_router(paciente.router)
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(monitor.router)
+app.include_router(integracoes.router)
 
 @app.get("/{full_path:path}")
-async def serve_frontend(full_path: str):
+async def serve_frontend(full_path: str, request: Request):
     """
     Serve o arquivo index.html para todas as rotas que não são da API ou arquivos estáticos.
     Isso é necessário para que o roteamento do Vue (SPA) funcione.
     """
-    # Se a rota começa com 'api', deixa o roteador do FastAPI lidar
+    # Se a rota começa com 'api', deixa o roteador do FastAPI lidar ou lança 404 de API
     if full_path.startswith("api"):
-        raise HTTPException(status_code=404, detail="API route not found")
+        raise HTTPException(status_code=404, detail="Rota de API não encontrada")
     
     index_path = os.path.join("src", "static", "dist", "index.html")
     if os.path.exists(index_path):

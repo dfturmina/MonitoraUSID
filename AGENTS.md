@@ -11,11 +11,7 @@
 Antes de gerar qualquer código ou implementar uma nova funcionalidade no sistema:
 1. **Consulte a especificação do projeto em [`docs/especificacao/SPEC.md`](docs/especificacao/SPEC.md)**.
 2. Siga os casos de uso, requisitos e modelo de dados descritos na pasta `docs/especificacao/`.
-3. **Validação Automática de Conformidade (11 Pilares Mandatórios):** Ao concluir qualquer implementação ou refatoração, o agente de IA **DEVE obrigatoriamente executar o auditor de conformidade arquitetural** rodando o comando:
-   ```bash
-   python audit_framework.py .
-   ```
-   *(O agente deve garantir que a Taxa de Conformidade do projeto seja mantida em **100% (EXCELENTE)**, cobrindo os 11 pilares: Stack Backend, AD/LDAP, Multi-provedor/Conectividade Híbrida, Cookies HttpOnly, Default-Private Routers, Security Headers, Governança de Configurações, Audit Logs com IP e Mudanças, Layout Vue 3 com SemVer no rodapé, Suíte Pytest e Monitoramento Zabbix).*
+
 
 ---
 
@@ -199,7 +195,6 @@ Todo sistema desenvolvido sobre este framework DEVE obrigatoriamente registrar a
 - **Tabela Unificada `audit_logs`:** Manter a estrutura de banco de dados (`src/models/audit_log.py`) para armazenar logs de auditoria imutáveis.
 - **Invocação via Helper (`src/helpers/audit_helper.py`):** Operações de criação, alteração ou exclusão de dados clínicos ou de privilégios de acesso DEVEM invocar `registrar_auditoria()` salvando obrigatoriamente o estado anterior (`dados_anteriores`) e novo (`dados_novos`) em formato JSON.
 - **Categorização Mandatória:** Todo registro deve ser classificado em `SEGURANCA`, `NEGOCIO_CLINICO` ou `CONFIGURACAO`.
-
 
 
 

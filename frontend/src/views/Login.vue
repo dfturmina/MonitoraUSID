@@ -1,58 +1,96 @@
 <template>
-  <div class="w-full max-w-md">
-    <Card>
-      <template #header>
-        <h1 class="text-xl font-semibold text-center">Login</h1>
-      </template>
-      <form @submit.prevent="handleLogin">
-        <div class="mb-4">
-          <label class="block text-sm font-bold mb-2" for="username">
-            Usuário
-          </label>
-          <input v-model="username" class="shadow-inner appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline" id="username" type="text" placeholder="E.g., EBSERHNET\\user">
+  <div class="w-full max-w-md mx-auto">
+    <!-- Card de Login Estilo Executive Glassmorphism -->
+    <div class="bg-white/95 backdrop-blur-xl rounded-3xl border border-gray-100 shadow-2xl p-8 space-y-6 transition-all duration-300">
+      
+      <!-- Cabeçalho / Branding -->
+      <div class="text-center space-y-2">
+        <div class="inline-flex items-center justify-center p-4 bg-emerald-500/10 text-emerald-600 rounded-2xl ring-8 ring-emerald-500/5 mb-2">
+          <ChartBarSquareIcon class="h-10 w-10" />
         </div>
-        <div class="mb-6">
-          <label class="block text-sm font-bold mb-2" for="password">
+        <h1 class="text-3xl font-black tracking-tight text-gray-900">MonitoraUSID</h1>
+        <p class="text-xs text-gray-500">Sistema Centralizado de Monitoramento de Aplicações</p>
+      </div>
+
+      <!-- Formulário de Autenticação -->
+      <form @submit.prevent="handleLogin" class="space-y-5">
+        <div>
+          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5" for="username">
+            Login Corporativo / AD
+          </label>
+          <div class="relative">
+            <input 
+              v-model="username" 
+              id="username" 
+              type="text" 
+              required
+              class="w-full pl-10 pr-4 py-3 bg-gray-50/80 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all outline-none" 
+              placeholder="ex: EBSERHNET\usuario"
+            />
+            <UserIcon class="h-5 w-5 text-gray-400 absolute left-3 top-3.5" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5" for="password">
             Senha
           </label>
           <div class="relative">
-            <input v-model="password" class="shadow-inner appearance-none border rounded w-full py-2 px-3 pr-10 leading-tight focus:outline-none focus:shadow-outline" id="password" :type="passwordFieldType" placeholder="******************">
-            <button type="button" @click="togglePasswordVisibility" class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500">
+            <input 
+              v-model="password" 
+              id="password" 
+              :type="passwordFieldType" 
+              required
+              class="w-full pl-10 pr-10 py-3 bg-gray-50/80 border border-gray-200 rounded-xl text-sm font-medium text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all outline-none" 
+              placeholder="••••••••••••"
+            />
+            <LockClosedIcon class="h-5 w-5 text-gray-400 absolute left-3 top-3.5" />
+            <button 
+              type="button" 
+              @click="togglePasswordVisibility" 
+              class="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 transition-colors"
+            >
               <component :is="passwordFieldType === 'password' ? EyeIcon : EyeSlashIcon" class="h-5 w-5" />
             </button>
           </div>
         </div>
-        <div class="mb-6">
-          <label class="flex items-center">
-            <input type="checkbox" v-model="rememberMe" class="form-checkbox h-5 w-5 text-orange-600">
-            <span class="ml-2 text-sm">Lembrar de mim</span>
+
+        <div class="flex items-center justify-between text-xs">
+          <label class="flex items-center space-x-2 cursor-pointer select-none">
+            <input type="checkbox" v-model="rememberMe" class="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4 border-gray-300" />
+            <span class="text-gray-600 font-medium">Lembrar de mim</span>
           </label>
+
+          <span class="text-emerald-600 font-semibold text-[11px] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+            AD / Mock Actived
+          </span>
         </div>
-        <div class="flex items-center justify-center space-x-4">
-          <Button type="button" variant="secondary" @click="clearForm" class="w-1/2 bg-gray-500 hover:bg-gray-600">
-            <template #icon>
-              <XCircleIcon class="h-5 w-5" />
-            </template>
-            Limpar
-          </Button>
-          <Button type="submit" variant="primary" :disabled="loading" class="w-1/2">
-            <template #icon>
-              <ArrowRightOnRectangleIcon class="h-5 w-5" />
-            </template>
-            Entrar
-          </Button>
+
+        <!-- Botões de Ação -->
+        <div class="pt-2">
+          <button 
+            type="submit" 
+            :disabled="loading"
+            class="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-600/20 active:scale-[0.99] transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+          >
+            <ArrowRightOnRectangleIcon v-if="!loading" class="h-5 w-5" />
+            <ArrowPathIcon v-else class="h-5 w-5 animate-spin" />
+            <span>{{ loading ? 'Autenticando...' : 'Acessar Sistema' }}</span>
+          </button>
         </div>
       </form>
-    </Card>
-    <div v-if="error" class="mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-      <strong class="font-bold">Erro: </strong>
-      <span class="block sm:inline">{{ error }}</span>
-    </div>
 
-    <!-- Rodapé de Versão -->
-    <div class="mt-6 text-center text-xs text-gray-400 space-y-1">
-      <p class="font-semibold text-gray-300">{{ HOSPITAL_NAME }}</p>
-      <p class="text-gray-400">{{ DEPARTMENT_NAME }} | Versão {{ APP_VERSION }}</p>
+      <!-- Feedback de Erro -->
+      <div v-if="error" class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2 animate-shake">
+        <ExclamationCircleIcon class="h-5 w-5 text-rose-500 shrink-0" />
+        <span>{{ error }}</span>
+      </div>
+
+      <!-- Rodapé do Card -->
+      <div class="pt-4 border-t border-gray-100 text-center space-y-1">
+        <p class="text-xs font-bold text-gray-700">{{ HOSPITAL_NAME }}</p>
+        <p class="text-[11px] text-gray-400">{{ DEPARTMENT_NAME }} | v{{ APP_VERSION }}</p>
+      </div>
     </div>
   </div>
 </template>
@@ -61,9 +99,16 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
-import Card from '../components/Card.vue';
-import Button from '../components/Button.vue';
-import { ArrowRightOnRectangleIcon, EyeIcon, EyeSlashIcon, XCircleIcon } from '@heroicons/vue/24/outline';
+import { 
+  ChartBarSquareIcon, 
+  UserIcon, 
+  LockClosedIcon, 
+  EyeIcon, 
+  EyeSlashIcon, 
+  ArrowRightOnRectangleIcon,
+  ArrowPathIcon,
+  ExclamationCircleIcon 
+} from '@heroicons/vue/24/outline';
 import { APP_VERSION, HOSPITAL_NAME, DEPARTMENT_NAME } from '../config/version';
 
 const username = ref('');
@@ -82,13 +127,6 @@ const togglePasswordVisibility = () => {
   passwordVisible.value = !passwordVisible.value;
 };
 
-const clearForm = () => {
-  username.value = '';
-  password.value = '';
-  rememberMe.value = false;
-  error.value = '';
-};
-
 const handleLogin = async () => {
   loading.value = true;
   error.value = '';
@@ -96,7 +134,7 @@ const handleLogin = async () => {
     await authStore.login(username.value, password.value, rememberMe.value);
     await router.push('/');
   } catch (e: any) {
-    error.value = e.response?.data?.detail || e.message || 'An unknown error occurred';
+    error.value = e.response?.data?.detail || e.message || 'Falha na autenticação. Verifique o usuário e senha.';
   } finally {
     loading.value = false;
   }
