@@ -204,10 +204,12 @@
 
             <!-- Conteúdo Detalhado (Recolhível / Expansível) -->
             <div v-if="allExpanded" class="mt-2 pt-2 border-t border-slate-100 space-y-2.5">
-              <!-- Métricas Zabbix Infra -->
-              <div v-if="app.zabbix_host_id && app.zabbix" class="p-2.5 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
+              <!-- Métricas Infraestrutura (Zabbix ou SSH) -->
+              <div v-if="app.zabbix" class="p-2.5 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
                 <div class="flex items-center justify-between text-[11px] font-bold text-slate-700">
-                  <span class="truncate" :title="app.zabbix?.name || app.zabbix_host_id">Zabbix: {{ app.zabbix?.name || app.zabbix_host_id }}</span>
+                  <span class="truncate" :title="app.zabbix?.name || app.zabbix_host_id || app.ssh_host">
+                    {{ app.zabbix?.source === 'SSH' ? 'SSH' : 'Zabbix' }}: {{ app.zabbix?.name || app.zabbix_host_id || app.ssh_host }}
+                  </span>
                   <span v-if="app.monitora_usuarios_ativos" class="text-[10px] text-indigo-600 font-mono flex items-center gap-1 shrink-0 ml-1">
                     <UsersIcon class="h-3 w-3" />
                     {{ app.active_users_origin === 'api_users' ? `${app.active_users || 0} Usuário(s) Ativo(s)` : (app.possui_rota_health ? `${app.active_users || 0} Usuário(s) Ativo(s)` : `${app.active_users || app.zabbix?.active_connections || 0} Conexões TCP Ativas`) }}
@@ -395,9 +397,28 @@
           <input v-model="appForm.nome" required type="text" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm p-2.5 border" placeholder="Ex: Sistema de Faturamento SUS" />
         </div>
 
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-slate-700">Tipo de Checagem</label>
+            <select v-model="appForm.tipo_checagem" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm p-2.5 border bg-white">
+              <option value="HTTP">HTTP / HTTPS</option>
+              <option value="TCP">TCP Direto (Sem HTTP)</option>
+              <option value="ZABBIX">Somente Zabbix</option>
+            </select>
+          </div>
+          <div v-if="appForm.tipo_checagem === 'TCP'">
+            <label class="block text-sm font-medium text-slate-700">Porta TCP</label>
+            <input v-model.number="appForm.porta_tcp" type="number" min="1" max="65535" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm p-2.5 border" placeholder="Ex: 10050" />
+          </div>
+          <div v-else>
+            <label class="block text-sm font-medium text-slate-700">Host SSH (Opcional)</label>
+            <input v-model="appForm.ssh_host" type="text" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm p-2.5 border" placeholder="Ex: wokibi ou root@10.34.0.219" />
+          </div>
+        </div>
+
         <div>
-          <label class="block text-sm font-medium text-slate-700">URL Base</label>
-          <input v-model="appForm.url_base" required type="url" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm p-2.5 border" placeholder="http://10.34.0.X:8000" />
+          <label class="block text-sm font-medium text-slate-700">{{ appForm.tipo_checagem === 'TCP' ? 'IP / Host' : 'URL Base' }}</label>
+          <input v-model="appForm.url_base" required :type="appForm.tipo_checagem === 'TCP' ? 'text' : 'url'" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm p-2.5 border" :placeholder="appForm.tipo_checagem === 'TCP' ? '10.34.0.70' : 'http://10.34.0.X:8000'" />
         </div>
 
         <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 space-y-3">
@@ -553,6 +574,11 @@ const appForm = ref<{
   criticidade: string;
   integracao_id: number | null;
   bancos_adicionais: Array<{ nome: string; host: string; porta: number }>;
+  tipo_checagem: string;
+  porta_tcp: number | null;
+  ssh_host: string;
+  http_headers: any;
+  servicos_monitorados: any;
 }>({
   nome: '',
   url_base: '',
@@ -564,7 +590,12 @@ const appForm = ref<{
   zabbix_host_id: '',
   criticidade: 'MEDIA',
   integracao_id: null,
-  bancos_adicionais: []
+  bancos_adicionais: [],
+  tipo_checagem: 'HTTP',
+  porta_tcp: null,
+  ssh_host: '',
+  http_headers: null,
+  servicos_monitorados: null
 });
 
 const onFrameworkToggle = () => {
@@ -595,7 +626,12 @@ const openAddModal = () => {
     zabbix_host_id: '',
     criticidade: 'MEDIA',
     integracao_id: null,
-    bancos_adicionais: []
+    bancos_adicionais: [],
+    tipo_checagem: 'HTTP',
+    porta_tcp: null,
+    ssh_host: '',
+    http_headers: null,
+    servicos_monitorados: null
   };
   showModal.value = true;
 };
@@ -632,7 +668,12 @@ const openEditModal = (app: any) => {
     zabbix_host_id: app.zabbix_host_id || '',
     criticidade: app.criticidade || 'MEDIA',
     integracao_id: app.integracao_id || null,
-    bancos_adicionais: parsedBancos
+    bancos_adicionais: parsedBancos,
+    tipo_checagem: app.tipo_checagem || 'HTTP',
+    porta_tcp: app.porta_tcp ?? null,
+    ssh_host: app.ssh_host || '',
+    http_headers: app.http_headers ?? null,
+    servicos_monitorados: app.servicos_monitorados ?? null
   };
   showModal.value = true;
 };

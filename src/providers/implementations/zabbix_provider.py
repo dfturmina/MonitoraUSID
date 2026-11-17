@@ -56,15 +56,44 @@ class ZabbixProvider(ZabbixProviderInterface):
             return None
         return None
 
+    async def _resolve_host_ids(self, host_refs: List[str]) -> List[str]:
+        """Resolve hostnames técnicos do Zabbix para hostids numéricos quando necessário."""
+        numeric_ids: List[str] = []
+        hostnames: List[str] = []
+        for ref in host_refs:
+            s = str(ref).strip()
+            if not s:
+                continue
+            if s.isdigit():
+                numeric_ids.append(s)
+            else:
+                hostnames.append(s)
+
+        if hostnames:
+            found = await self._call_rpc("host.get", {
+                "filter": {"host": hostnames},
+                "output": ["hostid", "host"],
+            })
+            if isinstance(found, list):
+                for h in found:
+                    hid = str(h.get("hostid", "")).strip()
+                    if hid:
+                        numeric_ids.append(hid)
+        return list(dict.fromkeys(numeric_ids))
+
     async def get_active_problems(self, host_ids: List[str] | None = None) -> List[Dict[str, Any]]:
         # Se host_ids não for fornecido ou for uma lista vazia (nenhuma aplicação com Host ID cadastrado)
         if not host_ids:
             return []
 
+        resolved_ids = await self._resolve_host_ids(host_ids)
+        if not resolved_ids:
+            return []
+
         # Busca os problemas atrelados exclusivamente a esses Host IDs cadastrados via trigger.get
         result = await self._call_rpc("trigger.get", {
             "output": ["triggerid", "description", "priority", "lastchange"],
-            "hostids": host_ids,
+            "hostids": resolved_ids,
             "only_true": True,
             "filter": {"value": 1},
             "sortfield": ["priority", "lastchange"],
@@ -91,12 +120,24 @@ class ZabbixProvider(ZabbixProviderInterface):
         return []
 
     async def get_host_metrics(self, host_id: str) -> Dict[str, Any]:
-        host_res = await self._call_rpc("host.get", {
-            "hostids": [host_id],
-            "output": ["hostid", "host", "name", "status"]
-        })
+        host_ref = (host_id or "").strip()
+        query_params: Dict[str, Any] = {"output": ["hostid", "host", "name", "status"]}
+        if host_ref.isdigit():
+            query_params["hostids"] = [host_ref]
+        else:
+            query_params["filter"] = {"host": [host_ref]}
+
+        host_res = await self._call_rpc("host.get", query_params)
+        if (not host_res or not isinstance(host_res, list)) and not host_ref.isdigit():
+            host_res = await self._call_rpc("host.get", {
+                "filter": {"name": [host_ref]},
+                "output": ["hostid", "host", "name", "status"]
+            })
+
         if not host_res or not isinstance(host_res, list) or len(host_res) == 0:
             return {
+                "source": "ZABBIX",
+                "available": False,
                 "host_id": host_id,
                 "name": f"Host #{host_id}",
                 "status": "OFFLINE",
@@ -111,11 +152,12 @@ class ZabbixProvider(ZabbixProviderInterface):
             }
 
         h = host_res[0]
+        numeric_host_id = str(h.get("hostid") or host_ref)
         status_str = "ONLINE" if str(h.get("status")) == "0" else "OFFLINE"
 
         # Consulta métricas reais via item.get no Zabbix RPC
         items = await self._call_rpc("item.get", {
-            "hostids": [host_id],
+            "hostids": [numeric_host_id],
             "output": ["key_", "lastvalue"]
         })
 
@@ -212,6 +254,8 @@ class ZabbixProvider(ZabbixProviderInterface):
             disk_usage_pct = round((disk_used_bytes / disk_total_bytes) * 100, 1) if disk_total_bytes > 0 and disk_used_bytes > 0 else 0.0
 
         return {
+            "source": "ZABBIX",
+            "available": True,
             "host_id": h.get("hostid"),
             "name": h.get("name"),
             "status": status_str,
