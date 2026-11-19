@@ -11,6 +11,26 @@ load_dotenv()
 
 from .resources.database import DatabaseManager, Base
 from .models import aplicacao, health_log, refresh_token, audit_log
+from .services.seed_sistemas import seed_monitored_systems
+
+
+async def _ensure_aplicacoes_columns(conn) -> None:
+    """Garante compatibilidade de schema em bancos SQLite existentes."""
+    from sqlalchemy import text
+
+    res = await conn.execute(text("PRAGMA table_info(aplicacoes)"))
+    existing = {row[1] for row in res.fetchall()}
+    migrations = [
+        ("tipo_checagem", "ALTER TABLE aplicacoes ADD COLUMN tipo_checagem VARCHAR NOT NULL DEFAULT 'HTTP'"),
+        ("porta_tcp", "ALTER TABLE aplicacoes ADD COLUMN porta_tcp INTEGER"),
+        ("ssh_host", "ALTER TABLE aplicacoes ADD COLUMN ssh_host VARCHAR"),
+        ("http_headers", "ALTER TABLE aplicacoes ADD COLUMN http_headers VARCHAR"),
+        ("servicos_monitorados", "ALTER TABLE aplicacoes ADD COLUMN servicos_monitorados VARCHAR"),
+    ]
+    for col_name, ddl in migrations:
+        if col_name not in existing:
+            await conn.execute(text(ddl))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -34,7 +54,13 @@ async def lifespan(app: FastAPI):
     # Create tables for App DB (if they don't exist) - for development only, Alembic handles this in production
     async with app.state.app_db.engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await _ensure_aplicacoes_columns(conn)
     print("App SQLite tables checked/created.")
+
+    async with app.state.app_db.async_session_maker() as seed_session:
+        inserted = await seed_monitored_systems(seed_session)
+        if inserted:
+            print(f"Seed inicial de sistemas: {inserted} aplicação(ões) cadastrada(s).")
 
     # Inicia o Daemon de Monitoramento em Segundo Plano para Alertas do Teams
     import asyncio
@@ -68,7 +94,12 @@ async def lifespan(app: FastAPI):
                                 "monitora_usuarios_ativos": getattr(a, "monitora_usuarios_ativos", False),
                                 "zabbix_host_id": getattr(a, "zabbix_host_id", ""),
                                 "criticidade": a.criticidade,
-                                "bancos_adicionais": getattr(a, "bancos_adicionais", None)
+                                "bancos_adicionais": getattr(a, "bancos_adicionais", None),
+                                "tipo_checagem": getattr(a, "tipo_checagem", "HTTP") or "HTTP",
+                                "porta_tcp": getattr(a, "porta_tcp", None),
+                                "ssh_host": getattr(a, "ssh_host", None),
+                                "http_headers": getattr(a, "http_headers", None),
+                                "servicos_monitorados": getattr(a, "servicos_monitorados", None),
                             }
                             poll_res = await HealthPollerService.poll_single_app(app_dict)
                             await TeamsAlertService.notify_system_status(

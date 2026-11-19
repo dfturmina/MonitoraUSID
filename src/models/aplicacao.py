@@ -26,6 +26,11 @@ class Aplicacao(Base):
     criticidade = Column(String, nullable=False, default="MEDIA")  # ALTA, MEDIA, BAIXA
     integracao_id = Column(Integer, nullable=True)  # ID da Integracao cadastrada
     bancos_adicionais = Column(String, nullable=True)  # JSON string com lista de [{"nome": "...", "host": "...", "porta": 5432}]
+    tipo_checagem = Column(String, nullable=False, default="HTTP")  # HTTP, TCP, ZABBIX
+    porta_tcp = Column(Integer, nullable=True)
+    ssh_host = Column(String, nullable=True)  # Alias ~/.ssh/config ou user@ip
+    http_headers = Column(String, nullable=True)  # JSON string com headers HTTP customizados
+    servicos_monitorados = Column(String, nullable=True)  # JSON string com checks SSH/extra_http
     ativo = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
